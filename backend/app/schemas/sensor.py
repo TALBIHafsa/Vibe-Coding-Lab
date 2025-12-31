@@ -20,9 +20,12 @@ class SensorDataResponse(SensorDataBase):
     class Config:
         from_attributes = True
 
-# Schema for Recommendations
 class RecommendationResponse(BaseModel):
     status: str
     action_required: bool
-    irrigation_advice: str  # [cite: 40]
-    fertilizer_advice: str  # [cite: 41]
+    irrigation_advice: str
+    fertilizer_advice: str
+    # Add these fields so the frontend knows what data was used!
+    current_moisture: float
+    current_temp: float
+    current_humidity: float

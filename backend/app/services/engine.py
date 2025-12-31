@@ -62,6 +62,10 @@ def generate_recommendation(data: SensorDataCreate) -> RecommendationResponse:
     return RecommendationResponse(
         status="Action Required" if action_needed else "Stable",
         action_required=action_needed,
-        irrigation_advice=f"{irrig_status} | {irrig_explanation}", # Pipe separator for UI parsing
-        fertilizer_advice=f"{fert_status} | {fert_explanation}"
+        irrigation_advice=f"{irrig_status} | {irrig_explanation}",
+        fertilizer_advice=f"{fert_status} | {fert_explanation}",
+        # Pass the source data back
+        current_moisture=data.soil_moisture,
+        current_temp=data.temperature,
+        current_humidity=data.humidity
     )
