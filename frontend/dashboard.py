@@ -43,11 +43,12 @@ if data:
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric(label="🌡️ Temperature", value="28.5 °C", delta="0.5 °C")
+        # Use data['current_temp'] instead of "28.5 °C"
+        st.metric(label="🌡️ Temperature", value=f"{data['current_temp']} °C")
     with col2:
-        st.metric(label="💧 Soil Moisture", value="22.0 %", delta="-5.0 %", delta_color="inverse")
+        st.metric(label="💧 Soil Moisture", value=f"{data['current_moisture']} %")
     with col3:
-        st.metric(label="☁️ Humidity", value="45.0 %")
+        st.metric(label="☁️ Humidity", value=f"{data['current_humidity']} %")
 
     st.divider()
 
