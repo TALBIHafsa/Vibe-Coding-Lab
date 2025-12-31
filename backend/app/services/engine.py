@@ -1,57 +1,67 @@
 from backend.app.schemas.sensor import SensorDataCreate, RecommendationResponse
 
-# Configuration: thresholds (Could be moved to config.py or DB)
-RULES_CONFIG = {
-    "moisture_low": 30.0,
-    "moisture_critical": 15.0,
-    "moisture_high": 80.0,
-    "moisture_heat_stress_threshold": 45.0,
-    "temp_high": 30.0,
-    "temp_low": 5.0,
-    "fert_min_moisture": 40.0,
-    "fert_optimal_temp_min": 20.0,
-    "fert_optimal_temp_max": 30.0
-}
-
 def generate_recommendation(data: SensorDataCreate) -> RecommendationResponse:
-    irrigation_msg = "Moisture levels are optimal."
-    fert_msg = "Conditions not suitable for fertilization."
-    action = False
-
-    # --- IRRIGATION LOGIC ---
-    if data.soil_moisture > RULES_CONFIG["moisture_high"]:
-         irrigation_msg = "STOP: Overwatering risk. Risk of root rot."
+    """
+    Generates advice with distinct 'Action' and 'Explanation' components.
+    """
+    # Defaults
+    irrig_status = "Keep Current State"
+    irrig_explanation = "Conditions are stable."
+    fert_status = "Wait"
+    fert_explanation = "Conditions not optimal for nutrient uptake."
+    action_needed = False
     
-    elif data.temperature < RULES_CONFIG["temp_low"]:
-        irrigation_msg = "STOP: Temperature too low for irrigation."
+    # ---------------------------------------------------------
+    # 1. IRRIGATION LOGIC (Prioritized by Severity)
+    # ---------------------------------------------------------
+    if data.soil_moisture < 15.0:
+        irrig_status = "IRRIGATE IMMEDIATELY"
+        irrig_explanation = "CRITICAL: Soil moisture is dangerously low (Drought risk)."
+        action_needed = True
+        
+    elif data.soil_moisture > 80.0:
+        irrig_status = "STOP IRRIGATION"
+        irrig_explanation = "CRITICAL: Soil saturated. Risk of root rot and fungal infection."
+        action_needed = True
 
-    elif data.soil_moisture < RULES_CONFIG["moisture_critical"]:
-        irrigation_msg = "ALARM: Critical drought! Water immediately."
-        action = True
+    elif data.temperature > 30.0 and data.soil_moisture < 50.0:
+        # Adjusted threshold (50%) to compensate for heat stress
+        irrig_status = "IRRIGATE (Heat Compensation)"
+        irrig_explanation = "High temperatures detected. Watering increased to offset transpiration."
+        action_needed = True
 
-    elif data.temperature >= RULES_CONFIG["temp_high"] and data.soil_moisture < RULES_CONFIG["moisture_heat_stress_threshold"]:
-        irrigation_msg = "ADVICE: High heat detected. Irrigation recommended to prevent heat stress."
-        action = True
+    elif data.soil_moisture < 30.0:
+        irrig_status = "IRRIGATE"
+        irrig_explanation = "Soil moisture is below target threshold."
+        action_needed = True
 
-    elif data.soil_moisture < RULES_CONFIG["moisture_low"]:
-        irrigation_msg = "ADVICE: Soil is dry. Standard irrigation recommended."
-        action = True
+    else:
+        irrig_status = "DO NOT WATER"
+        irrig_explanation = "Moisture levels are sufficient for now."
 
-    # --- FERTILIZATION LOGIC ---
-    # Check "Blockers" first
-    if data.soil_moisture < RULES_CONFIG["fert_min_moisture"]:
-        fert_msg = "BLOCK: Soil too dry. Fertilizer may cause root burn."
-    elif data.temperature > RULES_CONFIG["temp_high"]:
-        fert_msg = "BLOCK: High heat. Fertilizer may induce stress."
-    elif data.temperature < 10.0: # Dormancy
-        fert_msg = "BLOCK: Plant dormant. Nutrient uptake low."
-    # If no blockers, check for optimal range
-    elif (RULES_CONFIG["fert_optimal_temp_min"] <= data.temperature <= RULES_CONFIG["fert_optimal_temp_max"]):
-        fert_msg = "ADVICE: Optimal conditions for fertilization."
+    # ---------------------------------------------------------
+    # 2. FERTILIZATION LOGIC (Safety First)
+    # ---------------------------------------------------------
+    if data.soil_moisture < 40.0:
+        fert_status = "BLOCK FERTILIZER"
+        fert_explanation = "Soil is too dry. Adding nutrients now causes root burn."
     
+    elif data.soil_moisture > 80.0:
+        fert_status = "BLOCK FERTILIZER"
+        fert_explanation = "Soil is saturated. Nutrients will wash away (leaching)."
+
+    elif data.temperature > 30.0:
+        fert_status = "BLOCK FERTILIZER"
+        fert_explanation = "High heat puts plant in stress. Feeding now causes damage."
+
+    elif 20.0 <= data.temperature <= 30.0:
+        fert_status = "APPLY FERTILIZER"
+        fert_explanation = "Optimal temperature and moisture for nutrient absorption."
+        action_needed = True # Flagging this as an action
+
     return RecommendationResponse(
-        status="Action Required" if action else "Stable",
-        action_required=action,
-        irrigation_advice=irrigation_msg,
-        fertilizer_advice=fert_msg
+        status="Action Required" if action_needed else "Stable",
+        action_required=action_needed,
+        irrigation_advice=f"{irrig_status} | {irrig_explanation}", # Pipe separator for UI parsing
+        fertilizer_advice=f"{fert_status} | {fert_explanation}"
     )
